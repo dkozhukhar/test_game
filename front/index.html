@@ -44,7 +44,7 @@
 </head>
 <body>
     <div class="card">
-        <h2>AI Negotiation Game</h2>
+        <h2>AI Negotiation Game <span id="version">v1.0</span></h2>
         <p>Rounds Left: <strong id="rounds">5</strong></p>
         <div class="progress"><div id="progress-bar" class="progress-bar"></div></div>
         <p>Your Offer: <strong id="offer">50</strong></p>
@@ -53,14 +53,16 @@
         <br>
         <button id="offerButton" onclick="sendOfferToAI()">Make an Offer</button>
         <p id="aiResponse">Let's start the negotiation!</p>
+        <p id="retryMessage" style="color: red; display: none;"></p>
     </div>
 
     <script>
         let offer = 50;
         let rounds = 5;
         let gameOver = false;
+        let retryTimer = null;
         const BACKEND_URL = "https://test-game-8ezq.onrender.com/api/chat"; 
-        const aiPersonality = ["friendly", "greedy", "strict"][Math.floor(Math.random() * 3)]; // Random AI personality
+        const aiPersonality = ["friendly", "greedy", "strict"][Math.floor(Math.random() * 3)]; 
 
         function changeOffer(amount) {
             if (gameOver) return;
@@ -73,12 +75,13 @@
             progressBar.style.width = `${(5 - rounds) * 20}%`;
         }
 
-        async function sendOfferToAI() {
+        async function sendOfferToAI(retryCount = 0) {
             if (gameOver) return;
             
             const button = document.getElementById("offerButton");
             button.disabled = true;
             document.getElementById("aiResponse").innerText = "Negotiating...";
+            document.getElementById("retryMessage").style.display = "none";
             
             try {
                 const response = await axios.post(BACKEND_URL, {
@@ -94,7 +97,6 @@
                 }
                 document.getElementById("aiResponse").innerText = aiMessage;
                 
-                // AI response logic
                 if (aiMessage.toLowerCase().includes("accept")) {
                     endGame("success", "Deal Accepted! You Win!");
                     return;
@@ -109,6 +111,16 @@
                 }
             } catch (error) {
                 console.error("Error communicating with AI:", error);
+                if (error.response && error.response.status === 429) {
+                    let waitTime = 20; // 20 seconds default
+                    if (error.response.headers["retry-after"]) {
+                        waitTime = parseInt(error.response.headers["retry-after"]);
+                    }
+                    document.getElementById("retryMessage").innerText = `Rate limit exceeded. Try again in ${waitTime}s.`;
+                    document.getElementById("retryMessage").style.display = "block";
+                    retryTimer = setTimeout(() => sendOfferToAI(retryCount + 1), waitTime * 1000);
+                    return;
+                }
                 document.getElementById("aiResponse").innerText = "Error negotiating with AI.";
             }
             
