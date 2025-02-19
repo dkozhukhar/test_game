@@ -63,7 +63,7 @@
             try {
                 const response = await axios.post(BACKEND_URL, {
                     messages: [
-                        { role: "system", content: "Generate a survival scenario with two distinct choices. Separate each part with a '|' symbol." }
+                        { role: "system", content: "Generate a survival scenario in this format: 'Scenario description | Choice 1 text | Choice 2 text'. Do NOT number the choices, just separate them with '|'" }
                     ]
                 });
                 
@@ -80,15 +80,23 @@
         }
 
         function displayScenario(aiMessage) {
-            const parts = aiMessage.split("|");
+            let parts = aiMessage.split("|");
+            
             if (parts.length < 3) {
-                console.error("Invalid AI response format:", aiMessage);
-                document.getElementById("scenario").innerText = "Invalid AI response format. Please try again.";
-                return;
+                console.error("Invalid AI response format. Attempting to parse manually:", aiMessage);
+                
+                // Try extracting choices using regex (if AI didn't format correctly)
+                const match = aiMessage.match(/(.*?)\n.*?\n(.*?)\n(.*)/s);
+                if (match) {
+                    parts = [match[1], match[2], match[3]];
+                } else {
+                    document.getElementById("scenario").innerText = "Invalid AI response format. Please try again.";
+                    return;
+                }
             }
-            document.getElementById("scenario").innerText = parts[0];
-            document.getElementById("choice1").innerText = parts[1];
-            document.getElementById("choice2").innerText = parts[2];
+            document.getElementById("scenario").innerText = parts[0].trim();
+            document.getElementById("choice1").innerText = parts[1].trim();
+            document.getElementById("choice2").innerText = parts[2].trim();
         }
 
         function makeChoice(choiceNumber) {
