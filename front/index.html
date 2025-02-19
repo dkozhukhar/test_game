@@ -58,9 +58,12 @@
     <script>
         let offer = 50;
         let rounds = 5;
+        let gameOver = false;
         const BACKEND_URL = "https://test-game-8ezq.onrender.com/api/chat"; 
+        const aiPersonality = ["friendly", "greedy", "strict"][Math.floor(Math.random() * 3)]; // Random AI personality
 
         function changeOffer(amount) {
+            if (gameOver) return;
             offer = Math.max(1, offer + amount);
             document.getElementById("offer").textContent = offer;
         }
@@ -71,10 +74,7 @@
         }
 
         async function sendOfferToAI() {
-            if (rounds <= 0) {
-                document.getElementById("aiResponse").innerText = "Game Over! Refresh to play again.";
-                return;
-            }
+            if (gameOver) return;
             
             const button = document.getElementById("offerButton");
             button.disabled = true;
@@ -83,15 +83,21 @@
             try {
                 const response = await axios.post(BACKEND_URL, {
                     messages: [
-                        { role: "system", content: "You are a trader negotiating a deal. Respond based on the offer history and personality." },
+                        { role: "system", content: `You are a ${aiPersonality} trader negotiating a deal. Respond based on the offer history and personality.` },
                         { role: "user", content: `I offer $${offer}. Do you accept?` }
                     ]
                 });
 
+                let aiMessage = "AI response is empty or invalid.";
                 if (response.data.choices && response.data.choices.length > 0) {
-                    document.getElementById("aiResponse").innerText = response.data.choices[0].message.content;
-                } else {
-                    document.getElementById("aiResponse").innerText = "AI response is empty or invalid.";
+                    aiMessage = response.data.choices[0].message.content;
+                }
+                document.getElementById("aiResponse").innerText = aiMessage;
+                
+                // AI response logic
+                if (aiMessage.toLowerCase().includes("accept")) {
+                    endGame("success", "Deal Accepted! You Win!");
+                    return;
                 }
                 
                 rounds--;
@@ -99,8 +105,7 @@
                 updateProgress();
                 
                 if (rounds === 0) {
-                    button.disabled = true;
-                    document.getElementById("aiResponse").innerText += "\nGame Over! Refresh to play again.";
+                    endGame("fail", "Game Over! No deal was made.");
                 }
             } catch (error) {
                 console.error("Error communicating with AI:", error);
@@ -108,6 +113,12 @@
             }
             
             button.disabled = false;
+        }
+
+        function endGame(status, message) {
+            gameOver = true;
+            document.getElementById("aiResponse").innerText = message;
+            document.getElementById("offerButton").disabled = true;
         }
     </script>
 </body>
