@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>AI Negotiation Game</title>
+    <title>AI Survival Game</title>
     <script defer src="https://cdn.jsdelivr.net/npm/axios/dist/axios.min.js"></script>
     <style>
         body {
@@ -27,111 +27,97 @@
             padding: 10px;
             font-size: 16px;
         }
-        .progress {
-            width: 100%;
-            background-color: #ddd;
-            height: 10px;
-            border-radius: 5px;
-            margin: 10px 0;
+        .game-over {
+            font-weight: bold;
+            font-size: 18px;
+            color: red;
         }
-        .progress-bar {
-            height: 10px;
-            border-radius: 5px;
-            background-color: #4caf50;
-            width: 0%;
+        .win {
+            font-weight: bold;
+            font-size: 18px;
+            color: green;
         }
     </style>
 </head>
 <body>
     <div class="card">
-        <h2>AI Negotiation Game <span id="version">v1.0</span></h2>
-        <p>Rounds Left: <strong id="rounds">5</strong></p>
-        <div class="progress"><div id="progress-bar" class="progress-bar"></div></div>
-        <p>Your Offer: <strong id="offer">50</strong></p>
-        <button onclick="changeOffer(-5)">-5</button>
-        <button onclick="changeOffer(5)">+5</button>
-        <br>
-        <button id="offerButton" onclick="sendOfferToAI()">Make an Offer</button>
-        <p id="aiResponse">Let's start the negotiation!</p>
+        <h2>AI Survival Game <span id="version">Fetching version...</span></h2>
+        <p>Turns Left: <strong id="turns">5</strong></p>
+        <p id="scenario">Waiting for AI to generate a survival scenario...</p>
+        <button id="choice1" onclick="makeChoice(1)">Option 1</button>
+        <button id="choice2" onclick="makeChoice(2)">Option 2</button>
+        <p id="aiResponse"></p>
         <p id="retryMessage" style="color: red; display: none;"></p>
     </div>
 
     <script>
-        let offer = 50;
-        let rounds = 5;
+        let turns = 5;
         let gameOver = false;
         let retryTimer = null;
-        const BACKEND_URL = "https://test-game-8ezq.onrender.com/api/chat"; 
-        const aiPersonality = ["friendly", "greedy", "strict"][Math.floor(Math.random() * 3)]; 
+        const BACKEND_URL = "https://test-game-8ezq.onrender.com/api/scenario";
+        const VERSION_URL = "https://test-game-8ezq.onrender.com/api/version";
 
-        function changeOffer(amount) {
+        async function fetchScenario() {
             if (gameOver) return;
-            offer = Math.max(1, offer + amount);
-            document.getElementById("offer").textContent = offer;
-        }
-
-        function updateProgress() {
-            const progressBar = document.getElementById("progress-bar");
-            progressBar.style.width = `${(5 - rounds) * 20}%`;
-        }
-
-        async function sendOfferToAI(retryCount = 0) {
-            if (gameOver) return;
-            
-            const button = document.getElementById("offerButton");
-            button.disabled = true;
-            document.getElementById("aiResponse").innerText = "Negotiating...";
-            document.getElementById("retryMessage").style.display = "none";
-            
+            document.getElementById("scenario").innerText = "Generating new scenario...";
             try {
                 const response = await axios.post(BACKEND_URL, {
                     messages: [
-                        { role: "system", content: `You are a ${aiPersonality} trader negotiating a deal. Respond based on the offer history and personality.` },
-                        { role: "user", content: `I offer $${offer}. Do you accept?` }
+                        { role: "system", content: "Generate a survival scenario with two distinct choices." }
                     ]
                 });
-
-                let aiMessage = "AI response is empty or invalid.";
+                
                 if (response.data.choices && response.data.choices.length > 0) {
-                    aiMessage = response.data.choices[0].message.content;
-                }
-                document.getElementById("aiResponse").innerText = aiMessage;
-                
-                if (aiMessage.toLowerCase().includes("accept")) {
-                    endGame("success", "Deal Accepted! You Win!");
-                    return;
-                }
-                
-                rounds--;
-                document.getElementById("rounds").textContent = rounds;
-                updateProgress();
-                
-                if (rounds === 0) {
-                    endGame("fail", "Game Over! No deal was made.");
+                    const aiMessage = response.data.choices[0].message.content;
+                    displayScenario(aiMessage);
+                } else {
+                    document.getElementById("scenario").innerText = "Failed to get scenario from AI.";
                 }
             } catch (error) {
-                console.error("Error communicating with AI:", error);
-                if (error.response && error.response.status === 429) {
-                    let waitTime = 20; // 20 seconds default
-                    if (error.response.headers["retry-after"]) {
-                        waitTime = parseInt(error.response.headers["retry-after"]);
-                    }
-                    document.getElementById("retryMessage").innerText = `Rate limit exceeded. Try again in ${waitTime}s.`;
-                    document.getElementById("retryMessage").style.display = "block";
-                    retryTimer = setTimeout(() => sendOfferToAI(retryCount + 1), waitTime * 1000);
-                    return;
-                }
-                document.getElementById("aiResponse").innerText = "Error negotiating with AI.";
+                console.error("Error fetching scenario:", error);
+                document.getElementById("scenario").innerText = "Error communicating with AI.";
             }
+        }
+
+        function displayScenario(aiMessage) {
+            const [scenarioText, choice1, choice2] = aiMessage.split("|");
+            document.getElementById("scenario").innerText = scenarioText;
+            document.getElementById("choice1").innerText = choice1;
+            document.getElementById("choice2").innerText = choice2;
+        }
+
+        function makeChoice(choiceNumber) {
+            if (gameOver) return;
+            turns--;
+            document.getElementById("turns").innerText = turns;
             
-            button.disabled = false;
+            if (turns === 0) {
+                endGame("game-over", "Game Over! Your adventure ends.");
+                return;
+            }
+            fetchScenario();
         }
 
         function endGame(status, message) {
             gameOver = true;
             document.getElementById("aiResponse").innerText = message;
-            document.getElementById("offerButton").disabled = true;
+            document.getElementById("aiResponse").className = status;
+            document.getElementById("choice1").disabled = true;
+            document.getElementById("choice2").disabled = true;
         }
+
+        async function fetchVersion() {
+            try {
+                const response = await axios.get(VERSION_URL);
+                document.getElementById("version").innerText = `v${response.data.version}`;
+            } catch (error) {
+                console.error("Error fetching version:", error);
+                document.getElementById("version").innerText = "vUnknown";
+            }
+        }
+
+        fetchVersion();
+        fetchScenario();
     </script>
 </body>
 </html>
