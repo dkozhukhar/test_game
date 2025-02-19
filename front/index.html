@@ -27,11 +27,26 @@
             padding: 10px;
             font-size: 16px;
         }
+        .progress {
+            width: 100%;
+            background-color: #ddd;
+            height: 10px;
+            border-radius: 5px;
+            margin: 10px 0;
+        }
+        .progress-bar {
+            height: 10px;
+            border-radius: 5px;
+            background-color: #4caf50;
+            width: 0%;
+        }
     </style>
 </head>
 <body>
     <div class="card">
         <h2>AI Negotiation Game</h2>
+        <p>Rounds Left: <strong id="rounds">5</strong></p>
+        <div class="progress"><div id="progress-bar" class="progress-bar"></div></div>
         <p>Your Offer: <strong id="offer">50</strong></p>
         <button onclick="changeOffer(-5)">-5</button>
         <button onclick="changeOffer(5)">+5</button>
@@ -42,56 +57,56 @@
 
     <script>
         let offer = 50;
-        const BACKEND_URL = "https://test-game-8ezq.onrender.com/api/chat"; // Replace with deployed backend URL
+        let rounds = 5;
+        const BACKEND_URL = "https://test-game-8ezq.onrender.com/api/chat"; 
 
         function changeOffer(amount) {
             offer = Math.max(1, offer + amount);
             document.getElementById("offer").textContent = offer;
         }
 
-        async function sendOfferToAI(retryCount = 0) {
+        function updateProgress() {
+            const progressBar = document.getElementById("progress-bar");
+            progressBar.style.width = `${(5 - rounds) * 20}%`;
+        }
+
+        async function sendOfferToAI() {
+            if (rounds <= 0) {
+                document.getElementById("aiResponse").innerText = "Game Over! Refresh to play again.";
+                return;
+            }
+            
             const button = document.getElementById("offerButton");
             button.disabled = true;
             document.getElementById("aiResponse").innerText = "Negotiating...";
-
+            
             try {
-                console.log("Sending request to backend...");
                 const response = await axios.post(BACKEND_URL, {
                     messages: [
-                        { role: "system", content: "You are a trader negotiating a deal." },
+                        { role: "system", content: "You are a trader negotiating a deal. Respond based on the offer history and personality." },
                         { role: "user", content: `I offer $${offer}. Do you accept?` }
                     ]
                 });
 
-                console.log("API Response:", response);
-                
                 if (response.data.choices && response.data.choices.length > 0) {
                     document.getElementById("aiResponse").innerText = response.data.choices[0].message.content;
                 } else {
                     document.getElementById("aiResponse").innerText = "AI response is empty or invalid.";
                 }
-            } catch (error) {
-                console.error("Full Error Object:", error);
-                if (error.response) {
-                    console.error("HTTP Status:", error.response.status);
-                    console.error("Response Data:", error.response.data);
-                    const errorMessage = error.response.data.error?.message || "Unknown error";
-
-                    if (error.response.status === 429 && retryCount < 3) {
-                        const waitTime = 20 * 1000; // 20 seconds
-                        document.getElementById("aiResponse").innerText = "Rate limit exceeded. Retrying in 20s...";
-                        setTimeout(() => sendOfferToAI(retryCount + 1), waitTime);
-                        return;
-                    }
-                    document.getElementById("aiResponse").innerText = "Error: " + errorMessage;
-                } else if (error.request) {
-                    console.error("Request was made but no response received.");
-                    document.getElementById("aiResponse").innerText = "Network error: No response from server.";
-                } else {
-                    console.error("Error setting up the request:", error.message);
-                    document.getElementById("aiResponse").innerText = "Request error: " + error.message;
+                
+                rounds--;
+                document.getElementById("rounds").textContent = rounds;
+                updateProgress();
+                
+                if (rounds === 0) {
+                    button.disabled = true;
+                    document.getElementById("aiResponse").innerText += "\nGame Over! Refresh to play again.";
                 }
+            } catch (error) {
+                console.error("Error communicating with AI:", error);
+                document.getElementById("aiResponse").innerText = "Error negotiating with AI.";
             }
+            
             button.disabled = false;
         }
     </script>
