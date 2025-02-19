@@ -49,7 +49,7 @@
             document.getElementById("offer").textContent = offer;
         }
 
-        async function sendOfferToAI() {
+        async function sendOfferToAI(retryCount = 0) {
             const button = document.getElementById("offerButton");
             button.disabled = true;
             document.getElementById("aiResponse").innerText = "Negotiating...";
@@ -75,7 +75,15 @@
                 if (error.response) {
                     console.error("HTTP Status:", error.response.status);
                     console.error("Response Data:", error.response.data);
-                    document.getElementById("aiResponse").innerText = "Error: " + (error.response.data.error?.message || "Unknown error");
+                    const errorMessage = error.response.data.error?.message || "Unknown error";
+
+                    if (error.response.status === 429 && retryCount < 3) {
+                        const waitTime = 20 * 1000; // 20 seconds
+                        document.getElementById("aiResponse").innerText = "Rate limit exceeded. Retrying in 20s...";
+                        setTimeout(() => sendOfferToAI(retryCount + 1), waitTime);
+                        return;
+                    }
+                    document.getElementById("aiResponse").innerText = "Error: " + errorMessage;
                 } else if (error.request) {
                     console.error("Request was made but no response received.");
                     document.getElementById("aiResponse").innerText = "Network error: No response from server.";
