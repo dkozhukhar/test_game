@@ -1,0 +1,91 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>AI Negotiation Game</title>
+    <script defer src="https://cdn.jsdelivr.net/npm/axios/dist/axios.min.js"></script>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            height: 100vh;
+            background-color: #f4f4f4;
+        }
+        .card {
+            background: white;
+            padding: 20px;
+            border-radius: 10px;
+            box-shadow: 0px 0px 10px rgba(0,0,0,0.1);
+            text-align: center;
+        }
+        button {
+            margin: 5px;
+            padding: 10px;
+            font-size: 16px;
+        }
+    </style>
+</head>
+<body>
+    <div class="card">
+        <h2>AI Negotiation Game</h2>
+        <p>Your Offer: <strong id="offer">50</strong></p>
+        <button onclick="changeOffer(-5)">-5</button>
+        <button onclick="changeOffer(5)">+5</button>
+        <br>
+        <button id="offerButton" onclick="sendOfferToAI()">Make an Offer</button>
+        <p id="aiResponse">Let's start the negotiation!</p>
+    </div>
+
+    <script>
+        let offer = 50;
+        const BACKEND_URL = "https://your-backend-service.com/api/chat"; // Replace with deployed backend URL
+
+        function changeOffer(amount) {
+            offer = Math.max(1, offer + amount);
+            document.getElementById("offer").textContent = offer;
+        }
+
+        async function sendOfferToAI() {
+            const button = document.getElementById("offerButton");
+            button.disabled = true;
+            document.getElementById("aiResponse").innerText = "Negotiating...";
+
+            try {
+                console.log("Sending request to backend...");
+                const response = await axios.post(BACKEND_URL, {
+                    messages: [
+                        { role: "system", content: "You are a trader negotiating a deal." },
+                        { role: "user", content: `I offer $${offer}. Do you accept?` }
+                    ]
+                });
+
+                console.log("API Response:", response);
+                
+                if (response.data.choices && response.data.choices.length > 0) {
+                    document.getElementById("aiResponse").innerText = response.data.choices[0].message.content;
+                } else {
+                    document.getElementById("aiResponse").innerText = "AI response is empty or invalid.";
+                }
+            } catch (error) {
+                console.error("Full Error Object:", error);
+                if (error.response) {
+                    console.error("HTTP Status:", error.response.status);
+                    console.error("Response Data:", error.response.data);
+                    document.getElementById("aiResponse").innerText = "Error: " + (error.response.data.error?.message || "Unknown error");
+                } else if (error.request) {
+                    console.error("Request was made but no response received.");
+                    document.getElementById("aiResponse").innerText = "Network error: No response from server.";
+                } else {
+                    console.error("Error setting up the request:", error.message);
+                    document.getElementById("aiResponse").innerText = "Request error: " + error.message;
+                }
+            }
+            button.disabled = false;
+        }
+    </script>
+</body>
+</html>
