@@ -63,10 +63,10 @@
             try {
                 const response = await axios.post(BACKEND_URL, {
                     messages: [
-                        { role: "system", content: "Generate a survival scenario in this format: 'Scenario description | Choice 1 text | Choice 2 text'. Do NOT number the choices, just separate them with '|'" }
+                        { role: "system", content: "Generate a survival scenario strictly in this format: 'Scenario description | Choice 1 | Choice 2'. Do NOT number or add new lines. Use '|' as the only separator." }
                     ]
                 });
-                
+        
                 if (response.data.choices && response.data.choices.length > 0) {
                     const aiMessage = response.data.choices[0].message.content;
                     displayScenario(aiMessage);
@@ -78,22 +78,23 @@
                 document.getElementById("scenario").innerText = "Error communicating with AI.";
             }
         }
-
+        
         function displayScenario(aiMessage) {
             let parts = aiMessage.split("|");
-            
+        
             if (parts.length < 3) {
                 console.error("Invalid AI response format. Attempting to parse manually:", aiMessage);
                 
-                // Try extracting choices using regex (if AI didn't format correctly)
-                const match = aiMessage.match(/(.*?)\n.*?\n(.*?)\n(.*)/s);
+                // Attempt to extract choices dynamically if AI formatted them differently
+                const match = aiMessage.match(/(.*?) (Do you choose to|Do you:) (.*?) or (.*?)\\?/s);
                 if (match) {
-                    parts = [match[1], match[2], match[3]];
+                    parts = [match[1], match[3], match[4]];
                 } else {
-                    document.getElementById("scenario").innerText = "Invalid AI response format. Please try again.";
+                    document.getElementById("scenario").innerText = "Invalid AI response format. Raw message:\n" + aiMessage;
                     return;
                 }
             }
+        
             document.getElementById("scenario").innerText = parts[0].trim();
             document.getElementById("choice1").innerText = parts[1].trim();
             document.getElementById("choice2").innerText = parts[2].trim();
