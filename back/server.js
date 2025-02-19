@@ -10,12 +10,14 @@ app.use(cors());
 
 const OPENAI_API_KEY = process.env.OPENAI_API_KEY;
 
-app.post("/api/chat", async (req, res) => {
+app.post("/api/scenario", async (req, res) => {
     try {
         const response = await axios.post("https://api.openai.com/v1/chat/completions", {
-            model: "gpt-4o",
-            messages: req.body.messages,
-            max_tokens: 50,
+            model: "gpt-3.5-turbo",
+            messages: [
+                { role: "system", content: "Generate a survival scenario with two distinct choices, separated by '|'" }
+            ],
+            max_tokens: 100
         }, {
             headers: {
                 "Authorization": `Bearer ${OPENAI_API_KEY}`,
@@ -25,9 +27,13 @@ app.post("/api/chat", async (req, res) => {
 
         res.json(response.data);
     } catch (error) {
-        console.error("Error:", error.response ? error.response.data : error.message);
-        res.status(500).json({ error: "Error communicating with OpenAI API" });
+        console.error("OpenAI API Error:", error.response ? error.response.data : error.message);
+        res.status(500).json({ error: "Error communicating with OpenAI API." });
     }
+});
+
+app.get("/api/version", (req, res) => {
+    res.json({ version: "1.0.1" });
 });
 
 app.listen(PORT, () => console.log(`Server running on port ${PORT}`));
