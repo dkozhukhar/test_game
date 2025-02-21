@@ -57,18 +57,23 @@
         const BACKEND_URL = "https://test-game-8ezq.onrender.com/api/scenario";
         const VERSION_URL = "https://test-game-8ezq.onrender.com/api/version";
 
+        let gameHistory = [];
+        
         async function fetchScenario() {
             if (gameOver) return;
             document.getElementById("scenario").innerText = "Generating new scenario...";
+            
             try {
                 const response = await axios.post(BACKEND_URL, {
                     messages: [
-                        { role: "system", content: "Generate a survival scenario strictly in this format: 'Scenario description | Choice 1 | Choice 2'. Do NOT number or add new lines. Use '|' as the only separator." }
+                        { role: "system", content: "You are an AI game master guiding a survival adventure. Use past events to create new scenarios. The choices must be meaningful and change the story." },
+                        { role: "user", content: "Here is the game history so far:\n" + gameHistory.join("\n") + "\nGenerate the next situation. Use this format: 'Scenario | Choice 1 | Choice 2'." }
                     ]
                 });
         
                 if (response.data.choices && response.data.choices.length > 0) {
                     const aiMessage = response.data.choices[0].message.content;
+                    gameHistory.push(aiMessage); // Store the AI response in game history
                     displayScenario(aiMessage);
                 } else {
                     document.getElementById("scenario").innerText = "Failed to get scenario from AI.";
@@ -102,13 +107,18 @@
 
         function makeChoice(choiceNumber) {
             if (gameOver) return;
+            
             turns--;
             document.getElementById("turns").innerText = turns;
+        
+            let chosenOption = document.getElementById(`choice${choiceNumber}`).innerText;
+            gameHistory.push(`Player chose: ${chosenOption}`); // Store player choice
             
             if (turns === 0) {
                 endGame("game-over", "Game Over! Your adventure ends.");
                 return;
             }
+        
             fetchScenario();
         }
 
